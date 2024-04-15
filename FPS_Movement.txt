@@ -1,0 +1,130 @@
+using UnityEngine;
+
+public class FPSControl : MonoBehaviour
+{
+    [Header("Component")]
+    public CharacterController controller;
+    public Transform Cam_Pos;
+    public Transform Orientation;
+    public Camera Cam;
+    public float Multiplier = 0.01f;
+
+    private float horizontalMovement;
+    private float verticalMovement;
+    private Vector3 MoveDirection;
+
+    [Header("MoveStat")]
+    public float playerWalkSpeed = 7f;
+    public float playerRunSpeed = 12f;
+    public float playerBoosterSpeed = 36f;
+    public float playerZoomSpeed = 4f;
+    public float jumpHeight = 5f;
+    public float defaultJumpHeight = 5f;
+    public float boostJumpHeight = 10f;
+    public float playerGravity = 5.8f;
+    public bool isMoving;
+    public bool isRunning;
+    private float playerSpeed;
+    private float lastjumpedtime;
+    private Vector3 grav;
+
+    [Header("GroundCheck")]
+    public float groundDistance = 0.4f;
+    public LayerMask groundMask;
+    public bool isGrounded;
+
+    [Header("Slope Handle")]
+    public float maxSlopeAngle;
+    public RaycastHit slopeHit;
+
+    public float SensX;
+    public float SensY;
+
+    private float mouseX;
+    private float mouseY;
+
+    private float xRotation;
+    private float yRotation;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        controller = GetComponent<CharacterController>();
+        lastjumpedtime = 0;
+        grav = Vector3.zero;
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        KeyBoardInput();
+        MouseInput();
+
+        isGrounded = Physics.CheckSphere(transform.position - new Vector3(0, 1.5f, 0), groundDistance, groundMask);
+        isMoving = !(verticalMovement == 0 && horizontalMovement == 0);
+        lastjumpedtime += Time.deltaTime;
+
+        Cam_Pos.position = Orientation.position;
+
+        Cam.transform.localRotation = Quaternion.Euler(xRotation, yRotation, 0);
+        Orientation.rotation = Quaternion.Euler(0, yRotation, 0);
+
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isSlope() && lastjumpedtime > 1)
+        {
+            grav.y = Mathf.Sqrt(jumpHeight * 2f * playerGravity);
+            lastjumpedtime = 0;
+        }
+
+        isRunning = Input.GetKey(KeyCode.LeftShift);
+
+        grav.y -= playerGravity * Time.deltaTime;
+
+        if (isGrounded && lastjumpedtime > 1)
+        {
+            grav.y = 0;
+        }
+
+        if (isRunning)
+        {
+            playerSpeed = playerRunSpeed;
+        }
+        else
+        {
+            playerSpeed = playerWalkSpeed;
+        }
+
+        controller.Move(grav * Time.deltaTime);
+        controller.Move(MoveDirection * playerSpeed * Time.deltaTime);
+
+        
+    }
+
+    private bool isSlope()
+    {
+        if (Physics.Raycast(transform.position, Vector3.down, out slopeHit, transform.localScale.y * 0.5f + 0.3f))
+        {
+            float angle = Vector3.Angle(Vector3.up, slopeHit.normal);
+            return angle < maxSlopeAngle && angle != 0;
+        }
+        return false;
+    }
+
+    private void KeyBoardInput()
+    {
+        horizontalMovement = Input.GetAxisRaw("Horizontal");
+        verticalMovement = Input.GetAxisRaw("Vertical");
+
+        MoveDirection = Orientation.forward * verticalMovement + Orientation.right * horizontalMovement;
+    }
+
+    private void MouseInput()
+    {
+        mouseX = Input.GetAxisRaw("Mouse X");
+        mouseY = Input.GetAxisRaw("Mouse Y");
+
+        yRotation += mouseX * SensX * Multiplier;
+        xRotation -= mouseY * SensY * Multiplier;
+
+        xRotation = Mathf.Clamp(xRotation, -80f, 80f);
+    }
+}
